@@ -249,21 +249,106 @@ The listing service has been built already. You need to build the remaining two 
 
 The first priority would be to get a working system up and running! A great submission would demonstrate a grasp of the principles of microservice architecture.
 
-## Setup
-This example uses spring boot 3.1.5 and Java 17. To run this project, it is recommended to run this on IntelliJ or Eclipse for easier setup.
-However, if you prefer manual execution, you can also use the following command:
+## Running locally
+
+Requirements: Java 17. Each service is an independent Gradle project with its own Gradle wrapper. Run each service in a separate terminal from the repository root, and keep all three terminals open.
+
+**Terminal 1 — Listing service (port 8081):**
+
 ```bash
-./gradlew bootrun
+cd listing-service
+./gradlew bootRun
 ```
 
-In case you have a different Java version installed, and installing this particular version might disrupt your current setup, consider using https://sdkman.io/ or other package manager for a more convenient switch.
-
-### Create listings
-Time to add some data into the listing service!
+**Terminal 2 — User service (port 8082):**
 
 ```bash
-curl localhost:8081/listings -XPOST \
-    -d userId=1 \
-    -d listingType=rent \
-    -d price=4500
+cd user-service
+./gradlew bootRun
+```
+
+**Terminal 3 — Public API (port 8080):**
+
+```bash
+cd public-api
+./gradlew bootRun
+```
+
+Start the listing and user services before the public API. The public API communicates with them through their REST APIs; it does not access their databases directly.
+
+The listing and user services use separate in-memory H2 databases. Their data is cleared when the respective service stops.
+
+### Try the public API
+
+Create a user:
+
+```bash
+curl -X POST http://localhost:8080/public-api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Kevin Public"}'
+```
+
+Example response:
+
+```json
+{
+  "user": {
+    "id": 1,
+    "name": "Kevin Public",
+    "createdAt": 1792769807571198,
+    "updatedAt": 1792769807571198
+  }
+}
+```
+
+Use the returned user ID in the next request. This example uses `1`:
+
+```bash
+curl -X POST http://localhost:8080/public-api/listings \
+  -H "Content-Type: application/json" \
+  -d '{"userId":1,"listingType":"rent","price":4500}'
+```
+
+Example response:
+
+```json
+{
+  "listing": {
+    "id": 1,
+    "userId": 1,
+    "listingType": "rent",
+    "price": 4500,
+    "createdAt": 1792769884048648,
+    "updatedAt": 1792769884048648
+  }
+}
+```
+
+Retrieve listings, including each listing's user details:
+
+```bash
+curl "http://localhost:8080/public-api/listings?pageNum=1&pageSize=10"
+```
+
+Example response:
+
+```json
+{
+  "result": true,
+  "listings": [
+    {
+      "id": 1,
+      "listingType": "rent",
+      "price": 4500,
+      "createdAt": 1792769884048648,
+      "updatedAt": 1792769884048648,
+      "user": {
+        "id": 1,
+        "name": "Kevin Public",
+        "createdAt": 1792769807571198,
+        "updatedAt": 1792769807571198
+      }
+    }
+  ]
+}
 ```
